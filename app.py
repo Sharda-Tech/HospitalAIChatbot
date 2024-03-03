@@ -7,6 +7,9 @@ from llama_index.core.memory import ChatMemoryBuffer
 from pydantic import BaseModel
 from llama_index.core.retrievers import VectorIndexRetriever
 import re
+import chromadb
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.core import StorageContext
     
 memory = ChatMemoryBuffer.from_defaults(token_limit=2500)
 
@@ -24,9 +27,17 @@ if "messages" not in st.session_state.keys(): # Initialize the chat messages his
 @st.cache_resource(show_spinner=False)
 def load_data():
     with st.spinner(text="Loading Data..."):
-        reader = SimpleDirectoryReader(input_dir="./data", recursive=True)
-        docs = reader.load_data()
-        index = VectorStoreIndex.from_documents(docs)
+         # initialize client, setting path to save data
+        db = chromadb.PersistentClient(path="./chroma_db")
+        # create collection
+        chroma_collection = db.get_or_create_collection("chatbot")
+        # assign chroma as the vector_store to the context
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        # load your index from stored vectors
+        index = VectorStoreIndex.from_vector_store(
+            vector_store, storage_context=storage_context
+        )
         return index
 
 index = load_data()
@@ -34,7 +45,7 @@ index = load_data()
 
 if "chat_engine" not in st.session_state.keys(): # Initialize the chat engine
         # st.session_state.chat_engine = index.as_chat_engine(chat_mode="condense_question", verbose=True)
-        st.session_state.chat_engine = index.as_chat_engine(chat_mode="context", memory=memory, verbose=True, system_prompt="Please provide an answer based solely on the provided sources. When referencing information from a source, cite the appropriate source(s) using their corresponding numbers. Every answer should include at least one source citation. Only cite a source when you are explicitly referencing it. If none of the sources are helpful, you should indicate that. For example:\nSource 1:\nThe sky is red in the evening and blue in the morning.\nSource 2:\nWater is wet when the sky is red.\nQuery: When is water wet?\nAnswer: Water will be wet when the sky is red [2], which occurs in the evening [1].\nNow it's your turn.")
+        st.session_state.chat_engine = index.as_chat_engine(chat_mode="context", memory=memory, verbose=True, system_prompt="Please provide an answer based solely on the provided sources.If none of the sources are helpful, you should indicate that by telling please call the risk management representative on call.")
 
 if prompt := st.chat_input("Your question"): # Prompt for user input and save to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
