@@ -45,7 +45,7 @@ index = load_data()
 
 if "chat_engine" not in st.session_state.keys(): # Initialize the chat engine
         # st.session_state.chat_engine = index.as_chat_engine(chat_mode="condense_question", verbose=True)
-        st.session_state.chat_engine = index.as_chat_engine(chat_mode="context", memory=memory, verbose=False, system_prompt="You are going to answer questions and make conversation regarding Hospital Policies. You can only make a conversation if the response is from the provided sources if none of the sources are relevant to the query, respond politely \"Please call the Risk Management Representative on call.\", user can ask question or just write a statement, you must respond ")
+        st.session_state.chat_engine = index.as_chat_engine(chat_mode="context", max_iterations=10,memory=memory, verbose=False, system_prompt="You are going to answer questions and make conversation regarding Hospital Policies. You can only make a conversation if the response is from the provided sources if none of the sources are relevant to the query, respond politely \"Please call the Risk Management Representative on call.\", user can ask question or just write a statement, you must respond.")
 
 if prompt := st.chat_input("Your question"): # Prompt for user input and save to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -68,5 +68,10 @@ if st.session_state.messages[-1]["role"] != "assistant":
             #     text_fmt = node.node.get_content().strip().replace("\n", " ")[:1000]
             #     citation = f'<p style="color:blue;">Citation: {text_fmt}</p>'  # Make the citation italic and blue
             #     st.markdown(citation, unsafe_allow_html=True)
+            for source in response.source_nodes:
+                print(source)
+                text_fmt = source.node.get_content().strip().replace("\n", " ")[:1000]
+                citation = f'<p style="color:blue;">Citation: {text_fmt}</p>'  # Make the citation italic and blue
+                st.markdown(citation, unsafe_allow_html=True)
             message = {"role": "assistant", "content": response.response}
             st.session_state.messages.append(message) # Add response to message history
